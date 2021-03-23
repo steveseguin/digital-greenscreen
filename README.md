@@ -9,6 +9,8 @@ To enable WASM + SIMD, go to `chrome://flags` and enable `WebAssembly SIMD suppo
 
 ![image](https://user-images.githubusercontent.com/2575698/112218380-02cce780-8bfa-11eb-8a1b-6ceb0bcacfcc.png)
 
+It is also hard-coded to 720p, so your camera needs to support that.
+
 ### TRY NOW!
 
 Try it out live: https://steveseguin.github.io/digital-greenscreen/
