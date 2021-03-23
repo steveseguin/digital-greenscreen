@@ -1,7 +1,7 @@
 # digital-greenscreen
 Just some sample prototype green screen code using Tensorflow lite. Unlite other packages out there, this is extremely simplified for easy access and relatively clear understanding of what's going on.
 
-This requires WASM + SIMD supported (enabled?) on your browser;
+This requires WASM + SIMD supported (enabled?) on your browser; also it requires Chrome.
 
 Try it out live: https://steveseguin.github.io/digital-greenscreen/
 
