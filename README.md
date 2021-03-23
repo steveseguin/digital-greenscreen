@@ -5,7 +5,8 @@ This requires WASM + SIMD supported (enabled?) on your browser; also it requires
 
 To enable WASM + SIMD, go to `chrome://flags` and enable `WebAssembly SIMD support.`
 
-![image](https://user-images.githubusercontent.com/2575698/112218135-c4372d00-8bf9-11eb-92a3-5d9c5e6cedbb.png)
+![image](https://user-images.githubusercontent.com/2575698/112218380-02cce780-8bfa-11eb-8a1b-6ceb0bcacfcc.png)
+
 
 
 Try it out live: https://steveseguin.github.io/digital-greenscreen/
