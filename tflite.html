@@ -1,0 +1,191 @@
+<html>
+<head>
+<script type="text/javascript" src="tflite-simd.js"></script>
+</head>
+<body>
+<video id="video" autoplay="true" muted="true" playsinline style='background-color:black;display:block;margin-bottom:10px;'></video>
+<div id="devices">
+  <div class="select">
+	<label for="videoSource">Video source: </label><select id="videoSource"></select>
+  </div>
+</div>
+<canvas width="1280" height="720" id="canvas"></canvas>
+<script>
+
+// Portions of code based on Apache-licenced code provided by Google and Volcomix; https://github.com/Volcomix/virtual-background
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+
+var videoElement = document.getElementById("video");
+var mode = "greenscreen";
+var mode = "image";
+var img = document.createElement("img");
+img.onload = function(){
+	img.ready = true;
+}
+img.src = "bg.jpg";
+img.ready = false;
+
+
+
+async function gotDevices() {
+	await navigator.mediaDevices.getUserMedia({audio:false, video:true}); // is needed to ask for permissinos.
+	navigator.mediaDevices.enumerateDevices().then((deviceInfos)=>{
+	  for (let i = 0; i !== deviceInfos.length; ++i) {
+		var deviceInfo = deviceInfos[i];
+		var option = document.createElement("option");
+		option.value = deviceInfo.deviceId;
+		if (deviceInfo.kind === "videoinput") {
+		  option.text = deviceInfo.label || "camera " + (videoSelect.length + 1);
+		  videoSelect.appendChild(option);
+		}
+	  }
+	  getStream();
+  });
+}
+
+function getStream() {
+  if (window.stream) {
+	window.stream.getTracks().forEach(function (track) {
+		track.stop();
+		console.log("TRack stopping");
+	});
+  }
+	
+  const constraints = {
+    audio: false,
+    video: {
+      deviceId: { exact: videoSelect.value },
+		width: {  exact: 1280},
+		height: {exact: 720}
+    }
+  };
+  return navigator.mediaDevices.getUserMedia(constraints)
+    .then(gotStream)
+    .catch(handleError);
+}
+
+function gotStream(stream) {
+	window.stream = stream; // make stream available to console
+	videoElement.srcObject = stream;
+	videoElement.width = 1280;
+	videoElement.height = 720;
+}
+
+function handleError(error) {
+  console.error("Error: ", error);
+}
+
+
+const model = false;
+async function main() {
+
+    if (model == false){
+		Module = await createTFLiteSIMDModule();
+		const modelResponse = await fetch(".segm_full_v679.tflite");
+		const model = await modelResponse.arrayBuffer();
+		console.log('Model buffer size:', model.byteLength);
+		Module.HEAPU8.set(new Uint8Array(model), Module._getModelBufferMemoryOffset());
+		Module._loadModel(model.byteLength);
+	}
+	
+	const segmentationWidth = 256;
+	const segmentationHeight = 144;
+	const segmentationPixelCount = segmentationWidth * segmentationHeight;
+	const inputMemoryOffset  = Module._getInputMemoryOffset() / 4;
+	const outputMemoryOffset = Module._getOutputMemoryOffset() / 4;
+	const segmentationMask = new ImageData(segmentationWidth, segmentationHeight);
+	const segmentationMaskCanvas = document.createElement('canvas');
+	segmentationMaskCanvas.width = segmentationWidth;
+	segmentationMaskCanvas.height = segmentationHeight;
+	const segmentationMaskCtx = segmentationMaskCanvas.getContext('2d');
+	
+	console.log('Starting Loop');
+	function process(){
+		
+		segmentationMaskCtx.drawImage(
+			videoElement,
+			0,
+			0,
+			videoElement.width,
+			videoElement.height,
+			0,
+			0,
+			segmentationWidth,
+			segmentationHeight
+		)
+		
+		const imageData = segmentationMaskCtx.getImageData(
+			0,
+			0,
+			segmentationWidth,
+			segmentationHeight
+		);
+		
+		for (let i = 0; i < segmentationPixelCount; i++) {
+			Module.HEAPF32[inputMemoryOffset + i * 3] = imageData.data[i * 4] / 255;
+			Module.HEAPF32[inputMemoryOffset + i * 3 + 1] = imageData.data[i * 4 + 1] / 255;
+			Module.HEAPF32[inputMemoryOffset + i * 3 + 2] = imageData.data[i * 4 + 2] / 255;
+		}
+		
+		Module._runInference();
+		
+		for (let i = 0; i < segmentationPixelCount; i++) {
+		  const background = Module.HEAPF32[outputMemoryOffset + i * 2]
+		  const person = Module.HEAPF32[outputMemoryOffset + i * 2 + 1]
+		  const shift = Math.max(background, person)
+		  const backgroundExp = Math.exp(background - shift)
+		  const personExp = Math.exp(person - shift)
+		  segmentationMask.data[i * 4 + 3] = (255 * personExp) / (backgroundExp + personExp) // softmax
+		}
+		segmentationMask
+		segmentationMaskCtx.putImageData(segmentationMask, 0, 0);
+		
+		ctx.globalCompositeOperation = 'copy';
+		ctx.filter = 'blur(4px)';
+		ctx.drawImage(  
+		  segmentationMaskCanvas,
+		  0,
+		  0,
+		  segmentationWidth,
+		  segmentationHeight,
+		  0,
+		  0,
+		  videoElement.width,
+		  videoElement.height
+		)
+		
+		ctx.globalCompositeOperation = 'source-in';
+		ctx.filter = 'none';
+		ctx.drawImage(videoElement, 0, 0)
+		
+		ctx.globalCompositeOperation = 'destination-over'
+		if (mode=="greenscreen"){
+			ctx.filter = 'none'; // Does not work on Safari
+			ctx.fillStyle = "#0F0";
+			ctx.fillRect(0, 0, 1280, 720);
+		} else if (mode=="image"){
+			ctx.filter = 'none'; // Does not work on Safari
+			if (img.ready){
+				ctx.drawImage(img, 0, 0, 1280, 720);
+			}
+		} else {
+			ctx.filter = 'blur(4px)'; // Does not work on Safari
+			ctx.drawImage(videoElement, 0, 0);
+		}
+		
+		window.requestAnimationFrame(process);
+	}
+	process();
+}
+
+
+var videoSelect = document.querySelector("select#videoSource");
+videoSelect.onchange = getStream;
+gotDevices();
+
+videoElement.onloadeddata = main;
+
+</script>
+</body>
+</html>
