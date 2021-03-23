@@ -82,7 +82,7 @@ async function main() {
 
     if (model == false){
 		Module = await createTFLiteSIMDModule();
-		const modelResponse = await fetch(".segm_full_v679.tflite");
+		const modelResponse = await fetch("segm_full_v679.tflite");
 		const model = await modelResponse.arrayBuffer();
 		console.log('Model buffer size:', model.byteLength);
 		Module.HEAPU8.set(new Uint8Array(model), Module._getModelBufferMemoryOffset());
