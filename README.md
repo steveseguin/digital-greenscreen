@@ -1,5 +1,5 @@
 # Digital Greenscreen
-Just some sample prototype green screen code using Tensorflow lite. Unlite other packages out there, this is extremely simplified for easy access and relatively clear understanding of what's going on.
+Just some sample prototype green screen code using Tensorflow lite. Unlike other packages out there, this is extremely simplified for easy access and relatively clear understanding of what's going on.
 
 ### Requirements to use
 
