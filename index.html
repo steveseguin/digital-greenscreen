@@ -29,8 +29,8 @@ img.ready = false;
 
 
 async function gotDevices() {
-	await navigator.mediaDevices.getUserMedia({audio:false, video:true}); // is needed to ask for permissinos.
-	navigator.mediaDevices.enumerateDevices().then((deviceInfos)=>{
+	const permissionStream = await navigator.mediaDevices.getUserMedia({audio:false, video:true}); // Ask for permission before enumerating labeled devices.
+	return navigator.mediaDevices.enumerateDevices().then((deviceInfos)=>{
 	  for (let i = 0; i !== deviceInfos.length; ++i) {
 		var deviceInfo = deviceInfos[i];
 		var option = document.createElement("option");
@@ -40,8 +40,9 @@ async function gotDevices() {
 		  videoSelect.appendChild(option);
 		}
 	  }
-	  getStream();
-  });
+  }).finally(() => {
+	permissionStream.getTracks().forEach(track => track.stop());
+  }).then(getStream);
 }
 
 function getStream() {
